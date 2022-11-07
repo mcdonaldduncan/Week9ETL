@@ -10,6 +10,11 @@
             errors.AddRange(process.GenerateReport2());
             errors.AddRange(process.GenerateReport3());
             errors.AddRange(process.GenerateReport4());
+
+            foreach (var error in errors)
+            {
+                Console.WriteLine($"Error: {error.ErrorMessage} Source: {error.Source}");
+            }
         }
     }
 }
