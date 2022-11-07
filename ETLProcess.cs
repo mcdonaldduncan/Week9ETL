@@ -220,6 +220,62 @@ namespace Week9ETL
             return errors;
         }
 
+        public List<Error> GenerateReport4()
+        {
+            List<Error> errors = new List<Error>();
+            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
+            int fields = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(SqlConString))
+                {
+                    conn.Open();
+
+                    string spName = $@"[dbo].[sp_GenerateReport4]";
+
+                    using (var command = new SqlCommand(spName, conn))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        var reader = command.ExecuteReader();
+                        int index = 0;
+                        while (reader.Read())
+                        {
+                            fields = reader.FieldCount;
+                            List<string> temp = new List<string>();
+                            for (int i = 0; i < fields; i++)
+                            {
+                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
+                            }
+                            lines.Add(index++, temp);
+                        }
+
+                        reader.Close();
+
+                    }
+
+                    conn.Close();
+                }
+
+                string columNames = @"Course_Code|Student_IDs|Primary_State";
+                errors.AddRange(ExportData(ReportFileName(4), columNames, lines, out MyFile reportFile));
+                errors.AddRange(ImportDataReport4(reportFile, 4));
+
+            }
+            catch (IOException ioe)
+            {
+                errors.Add(new Error(ioe.Message, ioe.Source));
+            }
+            catch (Exception e)
+            {
+                errors.Add(new Error(e.Message, e.Source));
+            }
+
+
+            return errors;
+        }
+
         private List<Error> ImportDataReport1(MyFile file, int reportNumber)
         {
             List<Error> errors = new List<Error>();
@@ -516,62 +572,6 @@ namespace Week9ETL
             }
 
             newFile = new MyFile("|", writePath, @".txt");
-
-
-            return errors;
-        }
-
-        public List<Error> GenerateReport4()
-        {
-            List<Error> errors = new List<Error>();
-            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 0;
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(SqlConString))
-                {
-                    conn.Open();
-
-                    string spName = $@"[dbo].[sp_GenerateReport4]";
-
-                    using (var command = new SqlCommand(spName, conn))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-
-                        var reader = command.ExecuteReader();
-                        int index = 0;
-                        while (reader.Read())
-                        {
-                            fields = reader.FieldCount;
-                            List<string> temp = new List<string>();
-                            for (int i = 0; i < fields; i++)
-                            {
-                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
-                            }
-                            lines.Add(index++, temp);
-                        }
-
-                        reader.Close();
-
-                    }
-
-                    conn.Close();
-                }
-
-                string columNames = @"Course_Code|Student_IDs|Primary_State";
-                errors.AddRange(ExportData(ReportFileName(4), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport4(reportFile, 4));
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
 
 
             return errors;
