@@ -51,6 +51,175 @@ namespace Week9ETL
             return header;
         }
 
+        public List<Error> GenerateReport1()
+        {
+            List<Error> errors = new List<Error>();
+            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
+            int fields = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(SqlConString))
+                {
+                    conn.Open();
+
+                    string spName = $@"[dbo].[sp_GenerateReport1]";
+
+                    using (var command = new SqlCommand(spName, conn))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        var reader = command.ExecuteReader();
+                        int index = 0;
+
+                        while (reader.Read())
+                        {
+                            fields = reader.FieldCount;
+                            List<string> temp = new List<string>();
+                            for (int i = 0; i < fields; i++)
+                            {
+                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
+                            }
+                            lines.Add(index++, temp);
+                        }
+
+                        reader.Close();
+
+                    }
+
+                    conn.Close();
+                }
+
+                string columNames = "ID|Full_Name|SSN|Full_Address|Phone";
+                errors.AddRange(ExportData(ReportFileName(1), columNames, lines, out MyFile reportFile));
+                errors.AddRange(ImportDataReport1(reportFile, 1));
+
+            }
+            catch (IOException ioe)
+            {
+                errors.Add(new Error(ioe.Message, ioe.Source));
+            }
+            catch (Exception e)
+            {
+                errors.Add(new Error(e.Message, e.Source));
+            }
+
+
+            return errors;
+        }
+
+        public List<Error> GenerateReport2()
+        {
+            List<Error> errors = new List<Error>();
+            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
+            int fields = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(SqlConString))
+                {
+                    conn.Open();
+
+                    string spName = $@"[dbo].[sp_GenerateReport2]";
+
+                    using (var command = new SqlCommand(spName, conn))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        var reader = command.ExecuteReader();
+                        int index = 0;
+                        while (reader.Read())
+                        {
+                            fields = reader.FieldCount;
+                            List<string> temp = new List<string>();
+                            for (int i = 0; i < fields; i++)
+                            {
+                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
+                            }
+                            lines.Add(index++, temp);
+                        }
+
+                        reader.Close();
+
+                    }
+
+                    conn.Close();
+                }
+
+                string columNames = "ID|Full_Name|Total_Courses|Courses_Complete|Courses_Incomplete|Courses_InProgress";
+                errors.AddRange(ExportData(ReportFileName(2), columNames, lines, out MyFile reportFile));
+                errors.AddRange(ImportDataReport2(reportFile, 2));
+
+            }
+            catch (IOException ioe)
+            {
+                errors.Add(new Error(ioe.Message, ioe.Source));
+            }
+            catch (Exception e)
+            {
+                errors.Add(new Error(e.Message, e.Source));
+            }
+
+
+            return errors;
+        }
+
+        public List<Error> GenerateReport3()
+        {
+            List<Error> errors = new List<Error>();
+            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
+            int fields = 0;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(SqlConString))
+                {
+                    conn.Open();
+
+                    string spName = $@"[dbo].[sp_GenerateReport3]";
+
+                    using (var command = new SqlCommand(spName, conn))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        var reader = command.ExecuteReader();
+                        int index = 0;
+                        while (reader.Read())
+                        {
+                            fields = reader.FieldCount;
+                            List<string> temp = new List<string>();
+                            for (int i = 0; i < fields; i++)
+                            {
+                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
+                            }
+                            lines.Add(index++, temp);
+                        }
+
+                        reader.Close();
+
+                    }
+
+                    conn.Close();
+                }
+
+                string columNames = @"Course_Code|Enrolled|Completed|Fail/Drop";
+                errors.AddRange(ExportData(ReportFileName(3), columNames, lines, out MyFile reportFile));
+                errors.AddRange(ImportDataReport3(reportFile, 3));
+
+            }
+            catch (IOException ioe)
+            {
+                errors.Add(new Error(ioe.Message, ioe.Source));
+            }
+            catch (Exception e)
+            {
+                errors.Add(new Error(e.Message, e.Source));
+            }
+
+
+            return errors;
+        }
+
         private List<Error> ImportDataReport1(MyFile file, int reportNumber)
         {
             List<Error> errors = new List<Error>();
@@ -352,176 +521,11 @@ namespace Week9ETL
             return errors;
         }
 
-        public List<Error> GenerateReport1()
-        {
-            List<Error> errors = new List<Error>();
-            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 5;
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(SqlConString))
-                {
-                    conn.Open();
-
-                    string spName = $@"[dbo].[sp_GenerateReport1]";
-
-                    using (var command = new SqlCommand(spName, conn))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-
-                        var reader = command.ExecuteReader();
-                        int index = 0;
-                        while (reader.Read())
-                        {
-                            List<string> temp = new List<string>();
-                            for (int i = 0; i < fields; i++)
-                            {
-                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
-                            }
-                            lines.Add(index++, temp);
-                        }
-
-                        reader.Close();
-
-                    }
-
-                    conn.Close();
-                }
-
-                string columNames = "ID|Full_Name|SSN|Full_Address|Phone";
-                errors.AddRange(ExportData(ReportFileName(1), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport1(reportFile, 1));
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-
-
-            return errors;
-        }
-
-        public List<Error> GenerateReport2()
-        {
-            List<Error> errors = new List<Error>();
-            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 6;
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(SqlConString))
-                {
-                    conn.Open();
-
-                    string spName = $@"[dbo].[sp_GenerateReport2]";
-
-                    using (var command = new SqlCommand(spName, conn))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-
-                        var reader = command.ExecuteReader();
-                        int index = 0;
-                        while (reader.Read())
-                        {
-                            List<string> temp = new List<string>();
-                            for (int i = 0; i < fields; i++)
-                            {
-                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
-                            }
-                            lines.Add(index++, temp);
-                        }
-
-                        reader.Close();
-
-                    }
-
-                    conn.Close();
-                }
-
-                string columNames = "ID|Full_Name|Total_Courses|Courses_Complete|Courses_Incomplete|Courses_InProgress";
-                errors.AddRange(ExportData(ReportFileName(2), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport2(reportFile, 2));
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-
-
-            return errors;
-        }
-
-        public List<Error> GenerateReport3()
-        {
-            List<Error> errors = new List<Error>();
-            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 4;
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(SqlConString))
-                {
-                    conn.Open();
-
-                    string spName = $@"[dbo].[sp_GenerateReport3]";
-
-                    using (var command = new SqlCommand(spName, conn))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-
-                        var reader = command.ExecuteReader();
-                        int index = 0;
-                        while (reader.Read())
-                        {
-                            List<string> temp = new List<string>();
-                            for (int i = 0; i < fields; i++)
-                            {
-                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
-                            }
-                            lines.Add(index++, temp);
-                        }
-
-                        reader.Close();
-
-                    }
-
-                    conn.Close();
-                }
-
-                string columNames = @"Course_Code|Enrolled|Completed|Fail/Drop";
-                errors.AddRange(ExportData(ReportFileName(3), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport3(reportFile, 3));
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-
-
-            return errors;
-        }
-
         public List<Error> GenerateReport4()
         {
             List<Error> errors = new List<Error>();
             Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 3;
+            int fields = 0;
 
             try
             {
@@ -539,6 +543,7 @@ namespace Week9ETL
                         int index = 0;
                         while (reader.Read())
                         {
+                            fields = reader.FieldCount;
                             List<string> temp = new List<string>();
                             for (int i = 0; i < fields; i++)
                             {
@@ -571,6 +576,7 @@ namespace Week9ETL
 
             return errors;
         }
+
         string ConvertEmptyValue(string init)
         {
             if (init == null || init == string.Empty)
