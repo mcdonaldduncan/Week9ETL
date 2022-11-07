@@ -25,21 +25,6 @@ namespace Week9ETL
             SqlConString = sqlConStringBuilder.ToString();
         }
 
-        private List<Error> ErrorTemplate()
-        {
-            List<Error> errors = new List<Error>();
-            try
-            {
-
-            }
-            catch (Exception)
-            {
-
-                throw;
-            }
-            return errors;
-        }
-
         private string CreateHeader(string[] headerItems)
         {
             string header = "";
@@ -64,32 +49,6 @@ namespace Week9ETL
             }
 
             return header;
-        }
-
-        private string CreateValues(string[] valueItems)
-        {
-            string value = "";
-
-            for (int i = 0; i < valueItems.Length; i++)
-            {
-                if (i == 0)
-                {
-                    value += "(";
-                }
-
-                value += $@"'{valueItems[i]}'";
-
-                if (i == valueItems.Length - 1)
-                {
-                    value += ")";
-                }
-                else
-                {
-                    value += ",";
-                }
-            }
-
-            return value;
         }
 
         private List<Error> ImportDataReport1(MyFile file, int reportNumber)
@@ -281,6 +240,67 @@ namespace Week9ETL
             return errors;
         }
 
+        private List<Error> ImportDataReport4(MyFile file, int reportNumber)
+        {
+            List<Error> errors = new List<Error>();
+            List<string[]> lines = new List<string[]>();
+            string header;
+            try
+            {
+                using (StreamReader sr = new StreamReader(file.FilePath))
+                {
+                    int index = 0;
+                    while (!sr.EndOfStream)
+                    {
+                        if (index < 3)
+                        {
+                            var headerItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
+                            header = CreateHeader(headerItems);
+                        }
+                        else
+                        {
+                            var lineItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
+                            lines.Add(lineItems);
+                        }
+                        index++;
+                    }
+                }
+
+                using (SqlConnection con = new SqlConnection(SqlConString))
+                {
+                    con.Open();
+
+                    string sproc = @"[dbo].[sp_InsertReport4Data]";
+
+
+                    foreach (var item in lines)
+                    {
+                        using (var cmd = new SqlCommand(sproc, con))
+                        {
+                            cmd.CommandType = CommandType.StoredProcedure;
+                            cmd.Parameters.AddWithValue("@Code", item[0]);
+                            cmd.Parameters.AddWithValue("@IDs", item[1]);
+                            cmd.Parameters.AddWithValue("@PrimaryState", item[2]);
+
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    con.Close();
+                }
+
+            }
+            catch (IOException ioe)
+            {
+                errors.Add(new Error(ioe.Message, ioe.Source));
+            }
+            catch (Exception e)
+            {
+                errors.Add(new Error(e.Message, e.Source));
+            }
+            return errors;
+        }
+
         private List<Error> ExportData(string newFileName, string includedColumns, Dictionary<int, List<string>> data, out MyFile newFile)
         {
             List<Error> errors = new List<Error>();
@@ -330,15 +350,6 @@ namespace Week9ETL
 
 
             return errors;
-        }
-
-        string ConvertEmptyValue(string init)
-        {
-            if (init == null || init == string.Empty)
-            {
-                return "null";
-            }
-            return init;
         }
 
         public List<Error> GenerateReport1()
@@ -506,5 +517,67 @@ namespace Week9ETL
             return errors;
         }
 
+        public List<Error> GenerateReport4()
+        {
+            List<Error> errors = new List<Error>();
+            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
+            int fields = 3;
+
+            try
+            {
+                using (SqlConnection conn = new SqlConnection(SqlConString))
+                {
+                    conn.Open();
+
+                    string spName = $@"[dbo].[sp_GenerateReport4]";
+
+                    using (var command = new SqlCommand(spName, conn))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        var reader = command.ExecuteReader();
+                        int index = 0;
+                        while (reader.Read())
+                        {
+                            List<string> temp = new List<string>();
+                            for (int i = 0; i < fields; i++)
+                            {
+                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
+                            }
+                            lines.Add(index++, temp);
+                        }
+
+                        reader.Close();
+
+                    }
+
+                    conn.Close();
+                }
+
+                string columNames = @"Course_Code|Student_IDs|Primary_State";
+                errors.AddRange(ExportData(ReportFileName(4), columNames, lines, out MyFile reportFile));
+                errors.AddRange(ImportDataReport4(reportFile, 4));
+
+            }
+            catch (IOException ioe)
+            {
+                errors.Add(new Error(ioe.Message, ioe.Source));
+            }
+            catch (Exception e)
+            {
+                errors.Add(new Error(e.Message, e.Source));
+            }
+
+
+            return errors;
+        }
+        string ConvertEmptyValue(string init)
+        {
+            if (init == null || init == string.Empty)
+            {
+                return "null";
+            }
+            return init;
+        }
     }
 }

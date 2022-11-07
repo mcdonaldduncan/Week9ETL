@@ -12,12 +12,6 @@ namespace Week9ETL
 
         public static string directoryPath => Path.Combine(Directory.GetCurrentDirectory(), folderName);
 
-        public static string Student => "[dbo].[Student]";
-
-        public static string Student_Info => "[dbo].[Student_Info]";
-
-        public static string Student_Enrollment => "[dbo].[Student_Enrollment]";
-
         public static string ReportTableName(int reportNumber)
         {
             return $"[dbo].[Report_{reportNumber} Table]";
