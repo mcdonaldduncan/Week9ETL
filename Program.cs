@@ -6,6 +6,7 @@
         {
             List<Error> errors = new List<Error>();
             ETLProcess process = new ETLProcess();
+
             errors.AddRange(process.GenerateReport1());
             errors.AddRange(process.GenerateReport2());
             errors.AddRange(process.GenerateReport3());
