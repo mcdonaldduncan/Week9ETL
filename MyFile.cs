@@ -14,7 +14,6 @@ namespace Week9ETL
 
         public MyFile()
         {
-
         }
 
         public MyFile(string _delimiter, string _filePath, string extension)
