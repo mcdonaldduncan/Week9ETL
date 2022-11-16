@@ -14,6 +14,8 @@ namespace Week9ETL
     {
         string SqlConString { get; set; }
 
+        List<Error> errors = new List<Error>();
+
         public ETLProcess()
         {
             SqlConnectionStringBuilder sqlConStringBuilder = new SqlConnectionStringBuilder();
@@ -25,45 +27,30 @@ namespace Week9ETL
             SqlConString = sqlConStringBuilder.ToString();
         }
 
-        private string CreateHeader(string[] headerItems)
+        public void RunETLProcess()
         {
-            string header = "";
+            errors.AddRange(GenerateReport(1, @"ID|Full_Name|SSN|Full_Address|Phone"));
+            errors.AddRange(GenerateReport(2, @"ID|Full_Name|Total_Courses|Courses_Complete|Courses_Incomplete|Courses_InProgress"));
+            errors.AddRange(GenerateReport(3, @"Course_Code|Enrolled|Completed|Fail/Drop"));
+            errors.AddRange(GenerateReport(4, @"Course_Code|Student_IDs|Primary_State"));
 
-            for (int i = 0; i < headerItems.Length; i++)
+            foreach (var error in errors)
             {
-                if (i == 0)
-                {
-                    header += "(";
-                }
-
-                header += $@"[{headerItems[i]}]";
-
-                if (i == headerItems.Length - 1)
-                {
-                    header += ")";
-                }
-                else
-                {
-                    header += ",";
-                }
+                Console.WriteLine($"Error: {error.ErrorMessage} Source: {error.Source}");
             }
-
-            return header;
         }
 
-        public List<Error> GenerateReport1()
+        public List<Error> GenerateReport(int reportNumber, string columnNames)
         {
-            List<Error> errors = new List<Error>();
             Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
             int fields = 0;
-
             try
             {
                 using (SqlConnection conn = new SqlConnection(SqlConString))
                 {
                     conn.Open();
 
-                    string spName = $@"[dbo].[sp_GenerateReport1]";
+                    string spName = $@"[dbo].[sp_GenerateReport{reportNumber}]";
 
                     using (var command = new SqlCommand(spName, conn))
                     {
@@ -90,445 +77,121 @@ namespace Week9ETL
                     conn.Close();
                 }
 
-                string columNames = "ID|Full_Name|SSN|Full_Address|Phone";
-                errors.AddRange(ExportData(ReportFileName(1), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport1(reportFile, 1));
-
+                errors.AddRange(ExportData(ReportFileName(reportNumber), columnNames, lines, out MyFile reportFile));
+                errors.AddRange(ImportReportData(reportFile, reportNumber));
             }
             catch (IOException ioe)
             {
-                errors.Add(new Error(ioe.Message, ioe.Source));
+                errors.Add(new Error(ioe.Message, ioe.Source + reportNumber));
             }
             catch (Exception e)
             {
-                errors.Add(new Error(e.Message, e.Source));
+                errors.Add(new Error(e.Message, e.Source + reportNumber));
             }
 
 
             return errors;
         }
 
-        public List<Error> GenerateReport2()
+        private List<Error> ImportReportData(MyFile file, int reportNumber)
         {
-            List<Error> errors = new List<Error>();
-            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 0;
+            List<string[]> lines = new List<string[]>();
+
+            int nonDataLineCount = 2;
 
             try
             {
+                using (StreamReader sr = new StreamReader(file.FilePath))
+                {
+                    int index = 0;
+                    while (!sr.EndOfStream)
+                    {
+                        var lineItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
+
+                        if (index > nonDataLineCount)
+                        {
+                            lines.Add(lineItems);
+                        }
+                        
+                        index++;
+                    }
+                }
+
                 using (SqlConnection conn = new SqlConnection(SqlConString))
                 {
                     conn.Open();
 
-                    string spName = $@"[dbo].[sp_GenerateReport2]";
+                    string sproc = @$"[dbo].[sp_InsertReport{reportNumber}Data]";
 
-                    using (var command = new SqlCommand(spName, conn))
+
+                    foreach (var item in lines)
                     {
-                        command.CommandType = CommandType.StoredProcedure;
-
-                        var reader = command.ExecuteReader();
-                        int index = 0;
-                        while (reader.Read())
+                        using (var cmd = new SqlCommand(sproc, conn))
                         {
-                            fields = reader.FieldCount;
-                            List<string> temp = new List<string>();
-                            for (int i = 0; i < fields; i++)
+                            cmd.CommandType = CommandType.StoredProcedure;
+                            
+                            switch (reportNumber)
                             {
-                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
+                                case 1:
+
+                                    cmd.Parameters.AddWithValue("@StudentID", item[0]);
+                                    cmd.Parameters.AddWithValue("@FullName", item[1]);
+                                    cmd.Parameters.AddWithValue("@SSN", item[2]);
+                                    cmd.Parameters.AddWithValue("@FullAddress", item[3]);
+                                    cmd.Parameters.AddWithValue("@Phone", item[4]);
+
+                                    break;
+                                case 2:
+
+                                    cmd.Parameters.AddWithValue("@StudentID", item[0]);
+                                    cmd.Parameters.AddWithValue("@FullName", item[1]);
+                                    cmd.Parameters.AddWithValue("@CourseCount", item[2]);
+                                    cmd.Parameters.AddWithValue("@Complete", item[3]);
+                                    cmd.Parameters.AddWithValue("@Incomplete", item[4]);
+                                    cmd.Parameters.AddWithValue("@InProgress", item[5]);
+
+                                    break;
+                                case 3:
+
+                                    cmd.Parameters.AddWithValue("@Code", item[0]);
+                                    cmd.Parameters.AddWithValue("@Enrolled", item[1]);
+                                    cmd.Parameters.AddWithValue("@Completed", item[2]);
+                                    cmd.Parameters.AddWithValue("@Failed", item[3]);
+
+                                    break;
+                                case 4:
+
+                                    cmd.Parameters.AddWithValue("@Code", item[0]);
+                                    cmd.Parameters.AddWithValue("@IDs", item[1]);
+                                    cmd.Parameters.AddWithValue("@PrimaryState", item[2]);
+
+                                    break;
+                                default:
+                                    errors.Add(new Error("Error modifying cmd", $"Report number {reportNumber}"));
+                                    break;
                             }
-                            lines.Add(index++, temp);
+                            
+                            cmd.ExecuteNonQuery();
                         }
-
-                        reader.Close();
-
                     }
 
                     conn.Close();
                 }
 
-                string columNames = "ID|Full_Name|Total_Courses|Courses_Complete|Courses_Incomplete|Courses_InProgress";
-                errors.AddRange(ExportData(ReportFileName(2), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport2(reportFile, 2));
-
             }
             catch (IOException ioe)
             {
-                errors.Add(new Error(ioe.Message, ioe.Source));
+                errors.Add(new Error(ioe.Message, ioe.Source + reportNumber));
             }
             catch (Exception e)
             {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-
-
-            return errors;
-        }
-
-        public List<Error> GenerateReport3()
-        {
-            List<Error> errors = new List<Error>();
-            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 0;
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(SqlConString))
-                {
-                    conn.Open();
-
-                    string spName = $@"[dbo].[sp_GenerateReport3]";
-
-                    using (var command = new SqlCommand(spName, conn))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-
-                        var reader = command.ExecuteReader();
-                        int index = 0;
-                        while (reader.Read())
-                        {
-                            fields = reader.FieldCount;
-                            List<string> temp = new List<string>();
-                            for (int i = 0; i < fields; i++)
-                            {
-                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
-                            }
-                            lines.Add(index++, temp);
-                        }
-
-                        reader.Close();
-
-                    }
-
-                    conn.Close();
-                }
-
-                string columNames = @"Course_Code|Enrolled|Completed|Fail/Drop";
-                errors.AddRange(ExportData(ReportFileName(3), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport3(reportFile, 3));
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-
-
-            return errors;
-        }
-
-        public List<Error> GenerateReport4()
-        {
-            List<Error> errors = new List<Error>();
-            Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
-            int fields = 0;
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(SqlConString))
-                {
-                    conn.Open();
-
-                    string spName = $@"[dbo].[sp_GenerateReport4]";
-
-                    using (var command = new SqlCommand(spName, conn))
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-
-                        var reader = command.ExecuteReader();
-                        int index = 0;
-                        while (reader.Read())
-                        {
-                            fields = reader.FieldCount;
-                            List<string> temp = new List<string>();
-                            for (int i = 0; i < fields; i++)
-                            {
-                                temp.Add(ConvertEmptyValue($"{reader.GetValue(i)}"));
-                            }
-                            lines.Add(index++, temp);
-                        }
-
-                        reader.Close();
-
-                    }
-
-                    conn.Close();
-                }
-
-                string columNames = @"Course_Code|Student_IDs|Primary_State";
-                errors.AddRange(ExportData(ReportFileName(4), columNames, lines, out MyFile reportFile));
-                errors.AddRange(ImportDataReport4(reportFile, 4));
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-
-
-            return errors;
-        }
-
-        private List<Error> ImportDataReport1(MyFile file, int reportNumber)
-        {
-            List<Error> errors = new List<Error>();
-            List<string[]> lines = new List<string[]>();
-            string header;
-            try
-            {
-                using (StreamReader sr = new StreamReader(file.FilePath))
-                {
-                    int index = 0;
-                    while (!sr.EndOfStream)
-                    {
-                        if (index < 3)
-                        {
-                            var headerItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            header = CreateHeader(headerItems);
-                        }
-                        else
-                        {
-                            var lineItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            lines.Add(lineItems);
-                        }
-                        index++;
-                    }
-                }
-
-                using (SqlConnection con = new SqlConnection(SqlConString))
-                {
-                    con.Open();
-
-                    string sproc = @"[dbo].[sp_InsertReport1Data]";
-
-
-                    foreach (var item in lines)
-                    {
-                        using (var cmd = new SqlCommand(sproc, con))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.AddWithValue("@StudentID", item[0]);
-                            cmd.Parameters.AddWithValue("@FullName", item[1]);
-                            cmd.Parameters.AddWithValue("@SSN", item[2]);
-                            cmd.Parameters.AddWithValue("@FullAddress", item[3]);
-                            cmd.Parameters.AddWithValue("@Phone", item[4]);
-
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    con.Close();
-                }
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-            return errors;
-        }
-
-        private List<Error> ImportDataReport2(MyFile file, int reportNumber)
-        {
-            List<Error> errors = new List<Error>();
-            List<string[]> lines = new List<string[]>();
-            string header;
-            try
-            {
-                using (StreamReader sr = new StreamReader(file.FilePath))
-                {
-                    int index = 0;
-                    while (!sr.EndOfStream)
-                    {
-                        if (index < 3)
-                        {
-                            var headerItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            header = CreateHeader(headerItems);
-                        }
-                        else
-                        {
-                            var lineItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            lines.Add(lineItems);
-                        }
-                        index++;
-                    }
-                }
-
-                using (SqlConnection con = new SqlConnection(SqlConString))
-                {
-                    con.Open();
-
-                    string sproc = @"[dbo].[sp_InsertReport2Data]";
-
-
-                    foreach (var item in lines)
-                    {
-                        using (var cmd = new SqlCommand(sproc, con))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.AddWithValue("@StudentID", item[0]);
-                            cmd.Parameters.AddWithValue("@FullName", item[1]);
-                            cmd.Parameters.AddWithValue("@CourseCount", item[2]);
-                            cmd.Parameters.AddWithValue("@Complete", item[3]);
-                            cmd.Parameters.AddWithValue("@Incomplete", item[4]);
-                            cmd.Parameters.AddWithValue("@InProgress", item[5]);
-
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    con.Close();
-                }
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-            return errors;
-        }
-
-        private List<Error> ImportDataReport3(MyFile file, int reportNumber)
-        {
-            List<Error> errors = new List<Error>();
-            List<string[]> lines = new List<string[]>();
-            string header;
-            try
-            {
-                using (StreamReader sr = new StreamReader(file.FilePath))
-                {
-                    int index = 0;
-                    while (!sr.EndOfStream)
-                    {
-                        if (index < 3)
-                        {
-                            var headerItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            header = CreateHeader(headerItems);
-                        }
-                        else
-                        {
-                            var lineItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            lines.Add(lineItems);
-                        }
-                        index++;
-                    }
-                }
-
-                using (SqlConnection con = new SqlConnection(SqlConString))
-                {
-                    con.Open();
-
-                    string sproc = @"[dbo].[sp_InsertReport3Data]";
-
-
-                    foreach (var item in lines)
-                    {
-                        using (var cmd = new SqlCommand(sproc, con))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.AddWithValue("@Code", item[0]);
-                            cmd.Parameters.AddWithValue("@Enrolled", item[1]);
-                            cmd.Parameters.AddWithValue("@Completed", item[2]);
-                            cmd.Parameters.AddWithValue("@Failed", item[3]);
-
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    con.Close();
-                }
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
-            }
-            return errors;
-        }
-
-        private List<Error> ImportDataReport4(MyFile file, int reportNumber)
-        {
-            List<Error> errors = new List<Error>();
-            List<string[]> lines = new List<string[]>();
-            string header;
-            try
-            {
-                using (StreamReader sr = new StreamReader(file.FilePath))
-                {
-                    int index = 0;
-                    while (!sr.EndOfStream)
-                    {
-                        if (index < 3)
-                        {
-                            var headerItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            header = CreateHeader(headerItems);
-                        }
-                        else
-                        {
-                            var lineItems = sr.ReadLine()?.Split(file.Delimiter) ?? new string[0];
-                            lines.Add(lineItems);
-                        }
-                        index++;
-                    }
-                }
-
-                using (SqlConnection con = new SqlConnection(SqlConString))
-                {
-                    con.Open();
-
-                    string sproc = @"[dbo].[sp_InsertReport4Data]";
-
-
-                    foreach (var item in lines)
-                    {
-                        using (var cmd = new SqlCommand(sproc, con))
-                        {
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.AddWithValue("@Code", item[0]);
-                            cmd.Parameters.AddWithValue("@IDs", item[1]);
-                            cmd.Parameters.AddWithValue("@PrimaryState", item[2]);
-
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-
-                    con.Close();
-                }
-
-            }
-            catch (IOException ioe)
-            {
-                errors.Add(new Error(ioe.Message, ioe.Source));
-            }
-            catch (Exception e)
-            {
-                errors.Add(new Error(e.Message, e.Source));
+                errors.Add(new Error(e.Message, e.Source + reportNumber));
             }
             return errors;
         }
 
         private List<Error> ExportData(string newFileName, string includedColumns, Dictionary<int, List<string>> data, out MyFile newFile)
         {
-            List<Error> errors = new List<Error>();
             string writePath = Path.Combine(directoryPath, newFileName);
 
             try
