@@ -1,4 +1,4 @@
-Processed at: 11/15/2022 9:01:11 PM
+Processed at: 12/5/2022 12:03:45 PM
 
 ID|Full_Name|Total_Courses|Courses_Complete|Courses_Incomplete|Courses_InProgress
 1|Binnie Youll|7|2|3|2

@@ -470,19 +470,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\dfmcd\\.nuget\\packages\\": {}
+    "C:\\Users\\dfmcd98\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\dfmcd\\Documents\\GitHub\\Week9ETL\\Week9ETL.csproj",
+      "projectUniqueName": "D:\\GitHubD\\Week9ETL\\Week9ETL.csproj",
       "projectName": "Week9ETL",
-      "projectPath": "C:\\Users\\dfmcd\\Documents\\GitHub\\Week9ETL\\Week9ETL.csproj",
-      "packagesPath": "C:\\Users\\dfmcd\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\dfmcd\\Documents\\GitHub\\Week9ETL\\obj\\",
+      "projectPath": "D:\\GitHubD\\Week9ETL\\Week9ETL.csproj",
+      "packagesPath": "C:\\Users\\dfmcd98\\.nuget\\packages\\",
+      "outputPath": "D:\\GitHubD\\Week9ETL\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\dfmcd\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\dfmcd98\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
@@ -529,7 +529,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.402\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\7.0.100\\RuntimeIdentifierGraph.json"
       }
     }
   }
